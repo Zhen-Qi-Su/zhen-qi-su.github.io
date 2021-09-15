@@ -1,0 +1,82 @@
+<form action="" method="get">
+    <fieldset>
+        <legend>設定</legend>
+        請輸入你要製造的字元:
+        <input type="text" class="getArr" name="charStr" maxlength="1" required>
+        <br><br>
+        字串前想加入什麼開頭:
+        <input type="text" class="getArr" name="leftStr">
+        <br><br>
+        你的字串最終長度多少:
+        <input type="number" class="getArr" name="strLength" required>
+        <br><br>
+        <input type="submit">
+    </fieldset>
+</form>
+<div>目前textarea長度為<font id="len"></font>
+</div>
+<script>
+    var getUrlString = location.href;
+    var url = new URL(getUrlString);
+    function test(strLength, charStr, leftStr = '') {
+        let str = leftStr;
+        for (let i = 0; i < strLength - leftStr.length; i++) {
+            str += charStr;
+        }
+        return str;
+    }
+
+    let getArr = new Array(3);
+    getArr[0] = url.searchParams.get('charStr');
+    getArr[1] = url.searchParams.get('leftStr');
+    getArr[2] = url.searchParams.get('strLength');
+    let inputArr = document.getElementsByClassName("getArr");
+    for (let i = 0; i < getArr.length; i++) {
+        if (getArr[i] == null) {
+            getArr[i] = "";
+        }
+        inputArr[i].value = getArr[i];
+        inputArr[i].addEventListener("input", function () {
+            inputArr[2].setAttribute("min", inputArr[0].value.length + inputArr[1].value.length);
+            if (Number(inputArr[2].value) < Number(inputArr[2].getAttribute("min"))) {
+                inputArr[2].value = inputArr[2].getAttribute("min");
+            }
+        }, false);
+    }
+    var s = document.createElement("textarea")
+    s.setAttribute("cols", 150)
+    s.setAttribute("rows", parseInt(getArr[2] / 150) * 2)
+    s.appendChild(document.createTextNode(test(getArr[2], getArr[0], getArr[1])))
+    var len = document.getElementById("len");
+    len.innerHTML = inputArr[2].value
+    document.body.appendChild(s)
+    s.addEventListener("input", function () {
+        console.log("t")
+        len.innerHTML = s.value.length;
+    }, false);
+</script>
+
+
+
+
+<!-- <!DOCTYPE html>
+<html lang="zh-tw">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Document</title>
+</head>
+
+<body>
+    <div class="My Hate" id="D1"  name="Hate1">hey</div>
+    <div class="My Love" id="D2"  name="Love1">yo</div>
+    <div class="My Hate" id="D3"  name="Hate2">ha</div>
+    <script>
+        var TT = document.getElementById("D1");
+        if (TT != null)
+            console.log(TT);
+    </script>
+
+</body>
+
+</html> -->
