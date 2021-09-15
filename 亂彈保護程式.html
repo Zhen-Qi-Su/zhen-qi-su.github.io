@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="zh-tw" style="height:98%">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Document</title>
+    <!-- <meta http-equiv="refresh" content="3; url="> -->
+    <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
+    <style>
+        #ball1 {
+            display: inline-block;
+            border: 0px;
+            padding: 0px;
+            margin: 0px;
+        }
+    </style>
+</head>
+
+<body style="height: 100%;">
+    <img src="https://stickershop.line-scdn.net/stickershop/v1/sticker/292305869/android/sticker.png" alt="" id="ball1">
+</body>
+<script>
+    var isWidthOrHeight = 0;
+    var widthMin = 0
+    var widthMax = document.body.clientWidth - $("#ball1").css("width").replace("px", "")
+    var heightMin = 0
+    var heightMax = document.body.clientHeight - $("#ball1").css("height").replace("px", "")
+    var widthNow = 0, heightNow = 0;
+    console.log(widthMax, heightMax)
+    function running() {
+        isWidthOrHeight = Math.round(Math.random())
+        if (isWidthOrHeight) {
+            if (Number($("#ball1").css("marginTop").replace("px", "")) != 0) {
+                heightNow = 0
+            } else {
+                console.log("H",$("#ball1").css("marginTop"), heightMax)
+                heightNow = heightMax
+            }
+            widthNow = Math.random() * widthMax
+        } else {
+            if (Number($("#ball1").css("marginLeft").replace("px", "")) != 0) {
+                widthNow = 0
+            } else {
+                console.log("W",$("#ball1").css("marginLeft"), widthMax)
+                widthNow = widthMax
+            }
+            heightNow = Math.random() * heightMax
+        }
+        $("#ball1").animate(
+            {
+                marginTop: heightNow + "px",
+                marginLeft: widthNow + "px"
+            }, 1000, function () {
+                running()
+            }
+        )
+    }
+    running();
+</script>
+
+</html>
