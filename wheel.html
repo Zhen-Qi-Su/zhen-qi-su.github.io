@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>大轉盤</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+        }
+
+        #frame {
+            position: absolute;
+            text-align: center;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* body {
+            padding: 0;
+            margin: auto;
+            width: fit-content;
+            height: fit-content;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        } */
+
+        #spin_button {
+            position: absolute;
+            width: 50px;
+            height: 50px;
+            line-height: 50px;
+            text-align: center;
+            background: yellow;
+            border-radius: 100%;
+            cursor: pointer;
+            font-size: 12px;
+            font-family: "微軟正黑體";
+        }
+    </style>
+</head>
+
+<body>
+    <div id="frame">
+        <div id="spin_button">旋轉</div>
+        <canvas id="canvas"></canvas>
+    </div>
+</body>
+<script>
+    let canvas = document.getElementById('canvas');
+    canvas.width = canvas.height = Math.min(window.innerWidth, window.innerHeight) * 0.9;
+    let context = canvas.getContext('2d'),
+        INSIDE_RADIUAS = 0,      // 用於非零環繞原則的內圓半徑
+        OUTSIDE_RADIUAS = canvas.width / 2,   // 轉盤的半徑
+        TEXT_RADIUAS = canvas.width / 2 - 40,      // 轉盤內文字的半徑
+        CENTER_X = canvas.width / 2,
+        CENTER_Y = canvas.height / 2,
+        awards = GetUrlAwards(),
+        startRadian = Math.floor(Math.random() * 360),      // 繪製獎項的起始角，改變該值實現旋轉效果
+        awardRadian = (Math.PI * 2) / GetAwardsTotalProportion(),       // 每一個獎項所佔的弧度
+        duration = 4000,     // 旋轉事件
+        velocity = 10,       // 旋轉速率
+        spinningTime = 0,    // 旋轉當前時間
+        spinTotalTime,       // 旋轉時間總長
+        spinningChange;      // 旋轉變化值的峰值
+
+    function GetUrlAwards() {
+        let githubURL = new URL(location.href);
+        let params = githubURL.searchParams;
+        let paramsArray = Array();
+        for (let pair of params.entries()) {
+            if (pair[0] == "Awards") {
+                paramsArray = pair[1].split(',');
+                colors = { "Color": Array(), "Specify": Array() };
+                for (let i = 0; i < paramsArray.length; i++) {
+                    param = paramsArray[i].split('@');
+                    colors["Color"].push(undefined);
+                    colors["Specify"].push(param[2] != undefined);
+                    param = {
+                        "Text": param[0],
+                        "Proportion": param[1] == undefined ? 1 : Number(param[1]),
+                        "Color": param[2] == undefined ? generateRandomCode() : "#" + param[2]
+                    };
+                    repeatIndex = colors["Color"].indexOf(param["Color"]);
+                    //找到有重複的顏色
+                    if (repeatIndex != -1) {
+                        //此選項的顏色不是指定的，所以就更換該選項顏色就好了
+                        if (!colors["Specify"][i]) {
+                            let randColor;
+                            do {
+                                randColor = generateRandomCode();
+                            } while (colors["Color"].indexOf(randColor) != -1)
+                            param["Color"] = colors["Color"][i] = randColor;
+                        }
+                        //重複顏色的選項的顏色不是指定的
+                        else if (!colors["Specify"][repeatIndex]) {
+                            colors["Color"][i] = param["Color"];
+                            let randColor;
+                            do {
+                                randColor = generateRandomCode();
+                            } while (colors["Color"].indexOf(randColor) != -1)
+                            paramsArray[repeatIndex]["Color"] = colors["Color"][repeatIndex] = randColor;
+                        }
+                        else {
+                            colors["Color"][i] = param["Color"];
+                        }
+                    }
+                    else {
+                        colors["Color"][i] = param["Color"];
+                    }
+                    paramsArray[i] = param;
+                }
+                return paramsArray;
+            }
+        }
+        return null;
+    }
+    function GetAwardsTotalProportion() {
+        let total = 0;
+        for (let i = 0; i < awards.length; i++) {
+            total += Number(awards[i]["Proportion"]);
+        }
+        return total;
+    }
+    function SetAwardsColor() {
+        let awardsColorArray = Array();
+        for (let index = 0; index < awards.length; index++) {
+            awardsColorArray[index] = generateRandomCode();
+        }
+        return awardsColorArray;
+    }
+    /**
+    * 緩動函數，由快到慢
+    * @param {Num} t 當前時間
+    * @param {Num} b 初始值
+    * @param {Num} c 變化值
+    * @param {Num} d 持續時間
+    */
+    function easeOut(t, b, c, d) {
+        if ((t /= d / 2) < 1) return c / 2 * t * t + b;
+        return -c / 2 * ((--t) * (t - 2) - 1) + b;
+    };
+    /**
+    * 繪製轉盤
+    */
+    function drawRouletteWheel() {
+        // ----- ① 清空頁面元素，用於逐幀動畫
+        context.clearRect(0, 0, canvas.width, canvas.height);
+        // -----
+        //目前累計占比
+        var totalProportion = 0;
+        // -----
+        for (let i = 0; i < awards.length; i++) {
+            let _startRadian = startRadian + awardRadian * totalProportion,  // 每一個獎項所佔的起始弧度
+                _endRadian = _startRadian + awardRadian * awards[i]["Proportion"];     // 每一個獎項的終止弧度
+            totalProportion += awards[i]["Proportion"];
+            // ----- ② 使用非零環繞原則，繪製圓盤
+            context.save();
+            context.fillStyle = awards[i]["Color"];
+            context.beginPath();
+            context.arc(canvas.width / 2, canvas.height / 2, OUTSIDE_RADIUAS, _startRadian, _endRadian, false);
+            context.arc(canvas.width / 2, canvas.height / 2, INSIDE_RADIUAS, _endRadian, _startRadian, true);
+            context.fill();
+            context.restore();
+            // -----
+            // ----- ③ 繪製文字
+            context.save();
+            context.font = 'bold 16px Helvetica, Arial';
+            context.fillStyle = '#FFF';
+            context.translate(
+                CENTER_X + Math.cos(_startRadian + awardRadian * awards[i]["Proportion"] / 2) * TEXT_RADIUAS,
+                CENTER_Y + Math.sin(_startRadian + awardRadian * awards[i]["Proportion"] / 2) * TEXT_RADIUAS
+            );
+            context.rotate(_startRadian + awardRadian * awards[i]["Proportion"] / 2 + Math.PI / 2);
+            canvasTextAutoLine(context, awards[i]["Text"], -context.measureText(awards[i]["Text"][0]).width / 2, -30, 17)
+            // context.fillText(awards[i]["Text"], -context.measureText(awards[i]["Text"]).width / 2, 0);
+            context.restore();
+            // -----
+        }
+        // ----- ④ 繪製指針
+        context.save();
+        context.beginPath();
+        context.moveTo(CENTER_X, CENTER_Y - OUTSIDE_RADIUAS + 8);
+        context.lineTo(CENTER_X - 10, CENTER_Y - OUTSIDE_RADIUAS);
+        context.lineTo(CENTER_X - 4, CENTER_Y - OUTSIDE_RADIUAS);
+        context.lineTo(CENTER_X - 4, CENTER_Y - OUTSIDE_RADIUAS - 10);
+        context.lineTo(CENTER_X + 4, CENTER_Y - OUTSIDE_RADIUAS - 10);
+        context.lineTo(CENTER_X + 4, CENTER_Y - OUTSIDE_RADIUAS);
+        context.lineTo(CENTER_X + 10, CENTER_Y - OUTSIDE_RADIUAS);
+        context.closePath();
+        context.fill();
+        context.restore();
+        // -----
+    }
+
+    function generateRandomCode() {
+        var myRandomColor = '#' + padLeft(Math.floor(Math.random() * 16777215).toString(16), 6);
+        return myRandomColor;
+    }
+    function padLeft(str, lenght) {
+        if (str.length >= lenght)
+            return str;
+        else
+            return padLeft("0" + str, lenght);
+    }
+    /**
+    * 開始旋轉
+    */
+    function rotateWheel() {
+        // 當 當前時間 大於 總時間，停止旋轉，並返回當前值
+        spinningTime += 20;
+        if (spinningTime >= spinTotalTime) {
+            alert(getValue());
+            location.hash = getValue();
+            return;
+        }
+        let _spinningChange = (spinningChange - easeOut(spinningTime, 0, spinningChange, spinTotalTime)) * (Math.PI / 180);
+        startRadian += _spinningChange
+        drawRouletteWheel();
+        window.requestAnimationFrame(rotateWheel);
+    }
+    /**
+    * 旋轉結束，獲取值
+    */
+    function getValue() {
+        let startAngle = startRadian * 180 / Math.PI,       // 弧度轉換為角度
+            awardAngle = awardRadian * 180 / Math.PI,
+            pointerAngle = 90,                              // 指針所指向區域的度數，該值控制選取哪個角度的值
+            overAngle = (startAngle + pointerAngle) % 360,  // 無論轉盤旋轉了多少圈，產生了多大的任意角，我們只需要求到當前位置起始角在360°範圍內的角度值
+            restAngle = 360 - overAngle,                    // 360°減去已旋轉的角度值，就是剩下的角度值
+            index = Math.floor(restAngle / awardAngle);     // 剩下的角度值 除以 每一個獎品的角度值，就能得到這是第幾個獎品
+        going = false;
+        let AnswerIndex = 0;
+        for (i = 0; i <= index; i++) {
+            if (awards[i]["Proportion"] + AnswerIndex > index) {
+                return awards[i]["Text"];
+            } else {
+                AnswerIndex = awards[i]["Proportion"] + AnswerIndex;
+            }
+        }
+    }
+    window.onload = function (e) {
+        drawRouletteWheel();
+        addEventListener('resize', resizeCanvas);
+    }
+    going = false;
+    document.getElementById('spin_button').addEventListener('click', () => {
+        if (going) return;
+        going = true;
+        spinningTime = 0;                                // 初始化當前時間
+        spinTotalTime = Math.random() * 3 + duration;    // 隨機定義一個時間總量
+        spinningChange = Math.random() * 10 + velocity;  // 隨機頂一個旋轉速率
+        rotateWheel();
+    })
+    /*
+    canvas:canvas物件
+    str:要繪製的字串
+    initX:繪製字串起始x座標
+    initY:繪製字串起始y座標
+    lineHeight:字行高，自己定義個值即可
+    */
+    function canvasTextAutoLine(canvas, str, initX, initY, lineHeight) {
+        var lineWidth = 0;
+        var canvasWidth = 0.0001;
+        var lastSubStrIndex = 0;
+        for (let i = 0; i < str.length; i++) {
+            lineWidth += canvas.measureText(str[i]).width;
+            if (lineWidth > canvasWidth - initX) {//減去initX,防止邊界出現的問題
+                canvas.fillText(str.substring(lastSubStrIndex, i), initX, initY);
+                initY += lineHeight;
+                lineWidth = 0;
+                lastSubStrIndex = i;
+            }
+            if (i == str.length - 1) {
+                canvas.fillText(str.substring(lastSubStrIndex, i + 1), initX, initY);
+            }
+        }
+    }
+
+    //窗口尺寸改变响应(修改canvas大小)
+
+    function resizeCanvas() {
+        canvas.style.display = 'none';
+        canvas.width = canvas.height = Math.min(window.innerWidth, window.innerHeight) * 0.9;
+        OUTSIDE_RADIUAS = canvas.width / 2;
+        TEXT_RADIUAS = canvas.width / 2 - 40;
+        CENTER_X = canvas.width / 2;
+        CENTER_Y = canvas.height / 2;
+        drawRouletteWheel();
+        canvas.style.display = 'flex';
+    };
+</script>
+
+</html>
