@@ -19,8 +19,8 @@
             border: 0px;
             padding: 0px;
             margin: 0px;
-            max-width: 200px;
-            max-height: 200px;
+            max-width: 10rem;
+            max-height: 10rem;
         }
 
         #mark {
@@ -33,13 +33,13 @@
 </head>
 
 <body style="height: 100%;">
-    <div id="mark">可於網址上帶入<b>src</b>參數與指定圖片網址來更換<br>可於網址上帶入<b>Max</b>或者<b>Min</b>參數與指定數字(預設15~15)來決定此圖片的移動速度範圍。</div>
+    <div id="mark">可於網址上帶入<b>src</b>參數與指定圖片網址來更換<br>可於網址上帶入<b>Max</b>或者<b>Min</b>參數與指定數字(預設5~5)來決定此圖片的移動速度範圍。</div>
     <img src="" alt="" id="ball1" onload="">
     <script>
         var getUrlString = location.href;
         var url = new URL(getUrlString);
         $("#ball1").attr('src', url.searchParams.get('src') || './image/messageImage_1687356102971.jpg');
-        var moveMax = Number(url.searchParams.get('Max')) || 15, moveMin = Number(url.searchParams.get('Min')) || 10;
+        var moveMax = Number(url.searchParams.get('Max')) || 5, moveMin = Number(url.searchParams.get('Min')) || 5;
     </script>
 </body>
 <script>
@@ -48,10 +48,12 @@
     var moveX = 0, moveY = 0;
     function moveRandom(Sign = "+") {
         if (Sign == "+") {
-            return (Math.random() * moveMax + moveMin);
+            console.log((Math.random() * (moveMax - moveMin) + moveMin))
+            return (Math.random() * (moveMax - moveMin) + moveMin);
         }
         else if (Sign == "-") {
-            return -(Math.random() * moveMax + moveMin)
+            console.log((Math.random() * (moveMax - moveMin) + moveMin))
+            return -(Math.random() * (moveMax - moveMin) + moveMin)
         }
     }
     function running() {
